@@ -8,14 +8,17 @@ from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 
-# Carpetas del sistema
-UPLOAD_FOLDER = './evidencias'
+# En Render, la carpeta '/tmp' es la única que tiene permisos de escritura asegurados
+UPLOAD_FOLDER = '/tmp/evidencias'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Ruta del archivo de texto para los tickets en la zona persistente temporal
+TICKETS_FILE = '/tmp/tickets.txt'
+
 # CONFIGURACIÓN DEL CORREO SERVIDOR (EMISOR)
 CORREO_EMISOR = "msprocesosconfiamoscol@gmail.com"
-CORREO_PASSWORD = "ahfq beyj boky zlhz" # Tu código de 16 letras ya configurado
+CORREO_PASSWORD = "ahfq beyj boky zlhz" 
 
 def enviar_correo_ticket(correo_destino, ticket_id, usuario, requerimiento):
     mensaje = MIMEMultipart()
@@ -58,15 +61,15 @@ def inicio():
 @app.route('/crear-ticket', methods=['POST'])
 def crear_ticket():
     nombre = request.form['nombre']
-    correo_usuario = request.form['correo_usuario'] # Captura el correo del formulario
+    correo_usuario = request.form['correo_usuario'] 
     requerimiento = request.form['requerimiento']
-    evidencia = request.files['evidencia']
+    evidencia = request.files.get('evidencia')
     
-    # 1. Guardar archivo adjunto
+    # 1. Guardar archivo adjunto (Corregido y simplificado sin errores de variables)
     nombre_archivo = "Sin evidencia"
-    if evidencia:
+    if evidencia and evidencia.filename != '':
         nombre_archivo = evidencia.filename
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename) if 'filename' in locals() else os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo)
         evidencia.save(filepath)
     
     # 2. Generar ID único del Ticket
@@ -76,8 +79,8 @@ def crear_ticket():
     numero_aleatorio = random.randint(100, 999)
     ticket_id = f"TK-{fecha_ticket}-{numero_aleatorio}"
     
-    # 3. Guardar en el archivo de texto
-    with open("tickets.txt", "a", encoding="utf-8") as archivo:
+    # 3. Guardar en el archivo de texto en /tmp
+    with open(TICKETS_FILE, "a", encoding="utf-8") as archivo:
         archivo.write(f"========================================\n")
         archivo.write(f"TICKET: {ticket_id}\n")
         archivo.write(f"FECHA: {fecha_legible}\n")

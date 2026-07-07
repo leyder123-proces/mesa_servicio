@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesa de Servicio - Procesos Confiamos</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh;">
+
+    <div style="background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center;">
+        <h2 style="color: #333; margin-bottom: 20px;">Mesa de Servicio</h2>
+        
+        <form action="/crear-ticket" method="POST" enctype="multipart/form-data">
+            
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">Nombre Completo:</label>
+                <input type="text" name="nombre" placeholder="Tu nombre" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">Tu Correo Electrónico:</label>
+                <input type="email" name="correo_usuario" placeholder="ejemplo@correo.com" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">Requerimiento / Falla:</label>
+                <textarea name="requerimiento" rows="4" placeholder="Describe detalladamente el problema..." required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: none;"></textarea>
+            </div>
+
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">Adjuntar Evidencia (Opcional):</label>
+                <input type="file" name="evidencia" style="width: 100%; padding: 5px; box-sizing: border-box;">
+            </div>
+
+            <button type="submit" style="width: 100%; background-color: #28a745; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background 0.3s;">
+                Generar Número de Ticket
+            </button>
+            
+        </form>
+    </div>
+
+</body>
+</html>

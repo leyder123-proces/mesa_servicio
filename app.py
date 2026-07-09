@@ -8,15 +8,15 @@ from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 
-# En Render, la carpeta '/tmp' es la única que tiene permisos de escritura asegurados
+# En Render, la carpeta '/tmp' garantiza permisos de escritura estables
 UPLOAD_FOLDER = '/tmp/evidencias'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Ruta del archivo de texto para los tickets en la zona persistente temporal
+# Archivo de texto para almacenar la base de datos de los tickets
 TICKETS_FILE = '/tmp/tickets.txt'
 
-# CONFIGURACIÓN DEL CORREO SERVIDOR (EMISOR)
+# CONFIGURACIÓN DEL CORREO EMISOR
 CORREO_EMISOR = "msprocesosconfiamoscol@gmail.com"
 CORREO_PASSWORD = "ahfq beyj boky zlhz" 
 
@@ -50,7 +50,7 @@ def enviar_correo_ticket(correo_destino, ticket_id, usuario, requerimiento):
         server.login(CORREO_EMISOR, CORREO_PASSWORD)
         server.sendmail(CORREO_EMISOR, correo_destino, mensaje.as_string())
         server.quit()
-        print(f"--> ¡Correo de notificación enviado con éxito a {correo_destino}!")
+        print(f"--> ¡Correo enviado con éxito a {correo_destino}!")
     except Exception as e:
         print(f"--> ERROR AL ENVIAR CORREO: {e}")
 
@@ -65,7 +65,7 @@ def crear_ticket():
     requerimiento = request.form['requerimiento']
     evidencia = request.files.get('evidencia')
     
-    # 1. Guardar archivo adjunto (Corregido y simplificado sin errores de variables)
+    # 1. Guardar archivo adjunto de forma limpia y segura
     nombre_archivo = "Sin evidencia"
     if evidencia and evidencia.filename != '':
         nombre_archivo = evidencia.filename
@@ -79,7 +79,7 @@ def crear_ticket():
     numero_aleatorio = random.randint(100, 999)
     ticket_id = f"TK-{fecha_ticket}-{numero_aleatorio}"
     
-    # 3. Guardar en el archivo de texto en /tmp
+    # 3. Guardar en el archivo de texto en la ruta /tmp
     with open(TICKETS_FILE, "a", encoding="utf-8") as archivo:
         archivo.write(f"========================================\n")
         archivo.write(f"TICKET: {ticket_id}\n")
@@ -90,10 +90,10 @@ def crear_ticket():
         archivo.write(f"ARCHIVO ADJUNTO: {nombre_archivo}\n")
         archivo.write(f"========================================\n\n")
     
-    # 4. ENVIAR EL CORREO AUTOMÁTICO AL USUARIO
+    # 4. Enviar notificación por correo electrónico
     enviar_correo_ticket(correo_usuario, ticket_id, nombre, requerimiento)
     
-    # Pantalla de éxito en el navegador
+    # Interfaz de éxito
     pantalla_exito = f"""
     <div style="font-family:Arial, sans-serif; text-align:center; margin-top:80px;">
         <div style="max-width:450px; margin:auto; background:#fff; padding:30px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); border-top: 5px solid #28a745;">
@@ -111,6 +111,15 @@ def crear_ticket():
     </div>
     """
     return render_template_string(pantalla_exito)
+
+# RUTA SECRETA PARA VER TUS RESULTADOS DESDE EL NAVEGADOR
+@app.route('/ver-base-datos-procesos')
+def ver_tickets():
+    if not os.path.exists(TICKETS_FILE):
+        return "<h3>Aún no se han registrado tickets en el sistema.</h3>"
+    with open(TICKETS_FILE, "r", encoding="utf-8") as archivo:
+        contenido = archivo.read()
+    return f"<pre style='padding:20px; background:#222; color:#fff; font-family:monospace;'>{contenido}</pre>"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

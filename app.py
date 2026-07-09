@@ -3,6 +3,7 @@ import os
 import random
 from datetime import datetime
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -45,11 +46,11 @@ def enviar_correo_ticket(correo_destino, ticket_id, usuario, requerimiento):
     mensaje.attach(MIMEText(cuerpo, 'plain'))
     
     try:
-        # Cambiamos a SMTP_SSL y al puerto seguro 465
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login(CORREO_EMISOR, CORREO_PASSWORD)
-        server.sendmail(CORREO_EMISOR, correo_destino, mensaje.as_string())
-        server.quit()
+        # Forzar el contexto SSL seguro para que Render no bloquee el puerto
+        contexto = ssl.create_default_context()
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=contexto) as server:
+            server.login(CORREO_EMISOR, CORREO_PASSWORD)
+            server.sendmail(CORREO_EMISOR, correo_destino, mensaje.as_string())
         print(f"--> ¡Correo enviado con éxito a {correo_destino}!")
     except Exception as e:
         print(f"--> ERROR AL ENVIAR CORREO: {e}")
@@ -93,7 +94,7 @@ def crear_ticket():
     # 4. Enviar notificación por correo electrónico
     enviar_correo_ticket(correo_usuario, ticket_id, nombre, requerimiento)
     
-    # Interfaz de éxito
+    # Interfaz de éxito que aparecerá al usuario
     pantalla_exito = f"""
     <div style="font-family:Arial, sans-serif; text-align:center; margin-top:80px;">
         <div style="max-width:450px; margin:auto; background:#fff; padding:30px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); border-top: 5px solid #28a745;">
@@ -112,7 +113,7 @@ def crear_ticket():
     """
     return render_template_string(pantalla_exito)
 
-# RUTA SECRETA PARA VER TUS RESULTADOS DESDE EL NAVEGADOR
+# RUTA SECRETA PARA REVISAR LOS TICKETS GENERADOS DESDE TU NAVEGADOR
 @app.route('/ver-base-datos-procesos')
 def ver_tickets():
     if not os.path.exists(TICKETS_FILE):

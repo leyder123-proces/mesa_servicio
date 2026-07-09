@@ -45,8 +45,8 @@ def enviar_correo_ticket(correo_destino, ticket_id, usuario, requerimiento):
     mensaje.attach(MIMEText(cuerpo, 'plain'))
     
     try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
+        # Cambiamos a SMTP_SSL y al puerto seguro 465
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(CORREO_EMISOR, CORREO_PASSWORD)
         server.sendmail(CORREO_EMISOR, correo_destino, mensaje.as_string())
         server.quit()

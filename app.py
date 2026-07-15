@@ -22,14 +22,22 @@ CORREO_EMISOR = "msprocesosconfiamoscol@gmail.com"
 CORREO_PASSWORD = "ahfq beyj boky zlhz" 
 CORREO_COPIA_INSTITUCIONAL = "operacionesyprocesos@confiamoscolombia.com"
 
+def registrar_log_correo(ticket_id, resultado):
+    """Guarda en la base de datos si el correo se envió o falló para que puedas revisarlo"""
+    try:
+        with open(TICKETS_FILE, "a", encoding="utf-8") as archivo:
+            archivo.write(f"[SISTEMA CORREO - TICKET {ticket_id}]: {resultado}\n\n")
+    except Exception as e:
+        print(f"Error escribiendo log de correo: {e}")
+
 def proceso_envio_correo(correo_usuario, ticket_id, usuario, requerimiento):
-    """Envía el correo al usuario solicitante y una copia al correo institucional"""
-    mensaje = MIMEMultipart()
-    mensaje['From'] = CORREO_EMISOR
-    # Enviamos al usuario y ponemos en copia al correo de operaciones
-    mensaje['To'] = correo_usuario
-    mensaje['Cc'] = CORREO_COPIA_INSTITUCIONAL
-    mensaje['Subject'] = f"🔔 Confirmación de Ticket: {ticket_id}"
+    """Envía correos individuales para evitar que uno rebote al otro y registra el resultado"""
+    
+    # 1. Crear el mensaje base
+    mensaje_usuario = MIMEMultipart()
+    mensaje_usuario['From'] = CORREO_EMISOR
+    mensaje_usuario['To'] = correo_usuario
+    mensaje_usuario['Subject'] = f"🔔 Confirmación de Ticket: {ticket_id}"
     
     cuerpo = f"""
     Hola {usuario},
@@ -42,25 +50,62 @@ def proceso_envio_correo(correo_usuario, ticket_id, usuario, requerimiento):
     REQUERIMIENTO: {requerimiento}
     ----------------------------------------
     
-    Se ha enviado una copia de este reporte al área de Operaciones y Procesos.
     Estaremos trabajando en tu solicitud lo antes posible.
     
     Atentamente,
     Mesa de Servicios - Procesos Confiamos
     """
-    mensaje.attach(MIMEText(cuerpo, 'plain'))
+    mensaje_usuario.attach(MIMEText(cuerpo, 'plain'))
+
+    # Crear el mensaje para operaciones
+    mensaje_ops = MIMEMultipart()
+    mensaje_ops['From'] = CORREO_EMISOR
+    mensaje_ops['To'] = CORREO_COPIA_INSTITUCIONAL
+    mensaje_ops['Subject'] = f"🚨 NUEVO TICKET REGISTRADO: {ticket_id}"
     
-    # Lista de destinatarios reales para el envío SMTP
-    destinatarios = [correo_usuario, CORREO_COPIA_INSTITUCIONAL]
+    cuerpo_ops = f"""
+    Atención Equipo de Operaciones,
+    
+    Se ha recibido un nuevo ticket en la Mesa de Servicio.
+    
+    DETALLES DEL REPORTE:
+    ----------------------------------------
+    ID TICKET: {ticket_id}
+    USUARIO: {usuario}
+    CORREO CONTACTO: {correo_usuario}
+    REQUERIMIENTO: {requerimiento}
+    ----------------------------------------
+    
+    Por favor ingresar a la consola de monitoreo para validar las evidencias adjuntas.
+    """
+    mensaje_ops.attach(MIMEText(cuerpo_ops, 'plain'))
+    
+    log_final = ""
     
     try:
         contexto = ssl.create_default_context()
         with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=contexto) as server:
             server.login(CORREO_EMISOR, CORREO_PASSWORD)
-            server.sendmail(CORREO_EMISOR, destinatarios, mensaje.as_string())
-        print(f"--> [OK] Correo enviado a {correo_usuario} y copia a {CORREO_COPIA_INSTITUCIONAL}")
-    except Exception as e:
-        print(f"--> [ALERTA] No se pudo enviar el correo de notificación. Error: {e}")
+            
+            # Intentar enviar al usuario
+            try:
+                server.sendmail(CORREO_EMISOR, correo_usuario, mensaje_usuario.as_string())
+                log_final += f"Enviado con éxito al usuario ({correo_usuario}). "
+            except Exception as e_user:
+                log_final += f"FALLÓ envío al usuario. Error: {e_user}. "
+                
+            # Intentar enviar a operaciones
+            try:
+                server.sendmail(CORREO_EMISOR, CORREO_COPIA_INSTITUCIONAL, mensaje_ops.as_string())
+                log_final += f"Enviado con éxito a Operaciones ({CORREO_COPIA_INSTITUCIONAL})."
+            except Exception as e_ops:
+                log_final += f"FALLÓ envío a Operaciones. Error: {e_ops}."
+                
+        registrar_log_correo(ticket_id, f"✅ PROCESO COMPLETADO -> {log_final}")
+        
+    except Exception as e_conexion:
+        # Si ni siquiera pudo iniciar sesión en Gmail
+        registrar_log_correo(ticket_id, f"❌ FALLÓ AUTENTICACIÓN EN GMAIL (¿Clave incorrecta?): {e_conexion}")
 
 @app.route('/')
 def inicio():
@@ -78,7 +123,6 @@ def crear_ticket():
         nombre_archivo = "Sin evidencia"
         if evidencia and evidencia.filename != '':
             nombre_archivo = evidencia.filename
-            # Reemplazar espacios para evitar enlaces caídos o rotos
             nombre_archivo = nombre_archivo.replace(" ", "_")
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo)
             evidencia.save(filepath)
@@ -110,7 +154,7 @@ def crear_ticket():
             <div style="max-width:450px; margin:auto; background:#fff; padding:30px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); border-top: 5px solid #28a745;">
                 <h2 style="color:#28a745; margin-bottom:10px;">¡Ticket Generado Exitosamente!</h2>
                 <p style="color:#555;">Hola <b>{nombre}</b>, hemos registrado tu requerimiento.</p>
-                <p style="color:#777; font-size:14px;">Se envió una copia de confirmación a: <br><b>{correo_usuario}</b><br>y a <b>{CORREO_COPIA_INSTITUCIONAL}</b></p>
+                <p style="color:#777; font-size:14px;">Se procesará el envío de correo a: <br><b>{correo_usuario}</b><br>y a <b>{CORREO_COPIA_INSTITUCIONAL}</b></p>
                 <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
                 <p style="font-size:14px; color:#777; margin-bottom:5px;">TU NÚMERO DE TICKET ES:</p>
                 <div style="background:#e8f5e9; color:#2e7d32; display:inline-block; padding:15px 30px; border-radius:6px; font-size:24px; font-weight:bold; letter-spacing:1px;">
@@ -145,13 +189,11 @@ def ver_tickets():
         
     contenido_html = []
     for linea in lineas:
-        # Si la línea contiene un archivo adjunto y no está vacío
         if "ARCHIVO ADJUNTO:" in linea:
             partes = linea.split("ARCHIVO ADJUNTO:")
             nombre_archivo = partes[1].strip()
             
             if nombre_archivo != "Sin evidencia":
-                # Convertimos el nombre del archivo en un enlace de descarga activo
                 enlace = f"<a href='/descargar-evidencia/{nombre_archivo}' style='color: #00bcd4; text-decoration: underline;' download>{nombre_archivo}</a>"
                 linea = f"ARCHIVO ADJUNTO: {enlace}\n"
                 
